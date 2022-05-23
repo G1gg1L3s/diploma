@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use crypto::{aessafe::AesSafe128Encryptor, symmetriccipher::BlockEncryptor};
+use crypto::{
+    aes::KeySize::KeySize128, aesni::AesNiEncryptor, aessafe::AesSafe128Encryptor,
+    symmetriccipher::BlockEncryptor,
+};
 
 use crate::base::{OneWay, PrivateKey, PublicKey};
 
@@ -16,6 +19,12 @@ pub trait BlockCipher: BlockEncryptor + Sized {
 impl BlockCipher for AesSafe128Encryptor {
     fn new(key: &[u8]) -> Self {
         AesSafe128Encryptor::new(key)
+    }
+}
+
+impl BlockCipher for AesNiEncryptor {
+    fn new(key: &[u8]) -> Self {
+        AesNiEncryptor::new(KeySize128, key)
     }
 }
 
@@ -67,6 +76,7 @@ impl<B: BlockCipher, const N: usize> BlockBuilder<B, N> {
 }
 
 pub type Aes128SafeBuilder = BlockBuilder<AesSafe128Encryptor, 16>;
+pub type Aes128NiBuilder = BlockBuilder<AesNiEncryptor, 16>;
 
 #[cfg(test)]
 mod tests {
