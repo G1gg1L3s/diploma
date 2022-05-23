@@ -4,7 +4,7 @@ use diploma::hash::Sha256Builder;
 fn criterion_benchmark(c: &mut Criterion) {
     let password = [0xde; 32];
     c.bench_function("sha256-hash-login-10000", |b| {
-        b.iter(|| Sha256Builder::new_private_from_password(10000, password))
+        b.iter(|| Sha256Builder::private_from_password(10000, password))
     });
 
     let private = Sha256Builder::new_private(5);

@@ -54,8 +54,8 @@ impl<H: Hash, const SIZE: usize> HashBuilder<H, SIZE> {
         PrivateKey::new(H::new(), rounds)
     }
 
-    pub fn new_private_from_password(rounds: usize, pass: [u8; SIZE]) -> PrivateKey<H, SIZE> {
-        PrivateKey::new_from_password(H::new(), rounds, pass)
+    pub fn private_from_password(rounds: usize, pass: [u8; SIZE]) -> PrivateKey<H, SIZE> {
+        PrivateKey::from_password(H::new(), rounds, pass)
     }
 
     pub fn new_public(password: [u8; SIZE]) -> PublicKey<H, SIZE> {
@@ -75,10 +75,10 @@ impl<F: OneWay, const SIZE: usize> PrivateKey<F, SIZE> {
     pub fn new(oneway: F, rounds: usize) -> Self {
         let mut pass = [0; SIZE];
         rand::thread_rng().fill_bytes(&mut pass);
-        Self::new_from_password(oneway, rounds, pass)
+        Self::from_password(oneway, rounds, pass)
     }
 
-    pub fn new_from_password(oneway: F, rounds: usize, pass: [u8; SIZE]) -> Self {
+    pub fn from_password(oneway: F, rounds: usize, pass: [u8; SIZE]) -> Self {
         let mut counter = rounds;
         let passwords = std::iter::successors(Some(pass), |pass| {
             let mut result = [0; SIZE];
