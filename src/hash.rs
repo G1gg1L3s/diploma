@@ -28,31 +28,61 @@ impl Hash for Sha256 {
     }
 }
 
-pub type PrivateKeySha256 = PrivateKey<Sha256, 32>;
-pub type PublicKeySha256 = PublicKey<Sha256, 32>;
-
-pub struct PrivateKey<H: Hash, const SIZE: usize> {
-    round: usize,
-    passwords: Vec<[u8; SIZE]>,
-    _digest: PhantomData<H>,
+pub trait OneWay {
+    fn compute(&self, i: usize, input: &[u8], output: &mut [u8]);
 }
 
-impl<H: Hash, const SIZE: usize> PrivateKey<H, SIZE> {
-    pub fn new(rounds: usize) -> Self {
-        let mut pass = [0; SIZE];
-        rand::thread_rng().fill_bytes(&mut pass);
-        Self::new_from_password(rounds, pass)
+impl<T> OneWay for T
+where
+    T: Hash,
+{
+    fn compute(&self, i: usize, input: &[u8], output: &mut [u8]) {
+        let ctr = u64::try_from(i)
+            .expect("sorry, architecture is not supported")
+            .to_be_bytes();
+        let mut d = T::new();
+        d.input(&ctr);
+        d.input(input);
+        d.result(output);
+    }
+}
+
+pub struct HashBuilder<H: Hash, const SIZE: usize>(PhantomData<H>);
+
+impl<H: Hash, const SIZE: usize> HashBuilder<H, SIZE> {
+    pub fn new_private(rounds: usize) -> PrivateKey<H, SIZE> {
+        PrivateKey::new(H::new(), rounds)
     }
 
-    pub fn new_from_password(rounds: usize, pass: [u8; SIZE]) -> Self {
+    pub fn new_private_from_password(rounds: usize, pass: [u8; SIZE]) -> PrivateKey<H, SIZE> {
+        PrivateKey::new_from_password(H::new(), rounds, pass)
+    }
+
+    pub fn new_public(password: [u8; SIZE]) -> PublicKey<H, SIZE> {
+        PublicKey::new(H::new(), password)
+    }
+}
+
+pub type Sha256Builder = HashBuilder<Sha256, 32>;
+
+pub struct PrivateKey<F: OneWay, const SIZE: usize> {
+    round: usize,
+    passwords: Vec<[u8; SIZE]>,
+    _oneway: PhantomData<F>,
+}
+
+impl<F: OneWay, const SIZE: usize> PrivateKey<F, SIZE> {
+    pub fn new(oneway: F, rounds: usize) -> Self {
+        let mut pass = [0; SIZE];
+        rand::thread_rng().fill_bytes(&mut pass);
+        Self::new_from_password(oneway, rounds, pass)
+    }
+
+    pub fn new_from_password(oneway: F, rounds: usize, pass: [u8; SIZE]) -> Self {
         let mut counter = rounds;
         let passwords = std::iter::successors(Some(pass), |pass| {
-            let ctr = u64::to_be_bytes(counter as u64);
-            let mut digest = H::new();
-            digest.input(&ctr);
-            digest.input(pass);
             let mut result = [0; SIZE];
-            digest.result(&mut result);
+            oneway.compute(counter, pass, &mut result);
             counter = counter.checked_sub(1)?;
             Some(result)
         })
@@ -62,7 +92,7 @@ impl<H: Hash, const SIZE: usize> PrivateKey<H, SIZE> {
         Self {
             round: rounds,
             passwords,
-            _digest: PhantomData {},
+            _oneway: PhantomData {},
         }
     }
 
@@ -88,30 +118,26 @@ impl<H: Hash, const SIZE: usize> PrivateKey<H, SIZE> {
     }
 }
 
-pub struct PublicKey<H: Hash, const SIZE: usize> {
+pub struct PublicKey<F: OneWay, const SIZE: usize> {
     round: usize,
     password: [u8; SIZE],
-    _digest: PhantomData<H>,
+    oneway: F,
 }
 
-impl<H: Hash, const SIZE: usize> PublicKey<H, SIZE> {
-    pub fn new(password: [u8; SIZE]) -> Self {
+impl<F: OneWay, const SIZE: usize> PublicKey<F, SIZE> {
+    pub fn new(oneway: F, password: [u8; SIZE]) -> Self {
         Self {
             // we already have 0th password, so start with a one
             round: 1,
             password,
-            _digest: PhantomData {},
+            oneway,
         }
     }
 
     pub fn verify_dry(&self, password: &[u8; SIZE]) -> Result<(), AuthError> {
         let hash = {
-            let ctr = u64::to_be_bytes(self.round as u64);
-            let mut d = H::new();
-            d.input(&ctr);
-            d.input(password);
             let mut out = [0; SIZE];
-            d.result(&mut out);
+            self.oneway.compute(self.round, password, &mut out);
             out
         };
 
@@ -136,12 +162,12 @@ impl<H: Hash, const SIZE: usize> PublicKey<H, SIZE> {
 
 #[test]
 fn normal_protocol() {
-    let mut private = PrivateKey::<Sha256, 32>::new(5);
+    let mut private = Sha256Builder::new_private(5);
 
     let p0 = private.get_password().unwrap();
     assert_eq!(private.pop_password(), State::Ok);
 
-    let mut public = PublicKey::<Sha256, 32>::new(p0);
+    let mut public = Sha256Builder::new_public(p0);
 
     let p1 = private.get_password().unwrap();
     assert!(public.verify(&p1).is_ok());

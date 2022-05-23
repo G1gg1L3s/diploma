@@ -1,16 +1,16 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use diploma::hash::{PrivateKeySha256, PublicKeySha256};
+use diploma::hash::Sha256Builder;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let password = [0xde; 32];
     c.bench_function("sha256-hash-login-10000", |b| {
-        b.iter(|| PrivateKeySha256::new_from_password(10000, password))
+        b.iter(|| Sha256Builder::new_private_from_password(10000, password))
     });
 
-    let private = PrivateKeySha256::new(5);
+    let private = Sha256Builder::new_private(5);
 
     let p0 = private.get_password().unwrap();
-    let public = PublicKeySha256::new(p0);
+    let public = Sha256Builder::new_public(p0);
 
     let p1 = private.get_password().unwrap();
 
