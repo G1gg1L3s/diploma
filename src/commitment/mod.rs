@@ -1,4 +1,5 @@
 pub mod aes;
+pub mod ed25519;
 pub mod hash;
 
 pub trait Commitment {
