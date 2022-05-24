@@ -4,13 +4,14 @@ use rand::Rng;
 pub struct Sha256;
 
 impl super::Commitment for Sha256 {
-    type Element = [u8; 32];
+    type PublicElement = [u8; 32];
+    type PrivateElement = [u8; 32];
 
-    fn generate(&self) -> Self::Element {
+    fn generate(&self) -> Self::PrivateElement {
         rand::thread_rng().gen()
     }
 
-    fn commit(&self, el: &Self::Element) -> Self::Element {
+    fn commit(&self, el: &Self::PrivateElement) -> Self::PublicElement {
         let mut digest = sha2::Sha256::new();
         digest.input(el);
         let mut out = [0; 32];
@@ -18,7 +19,7 @@ impl super::Commitment for Sha256 {
         out
     }
 
-    fn verify(&self, commitment: &Self::Element, reveal: &Self::Element) -> bool {
+    fn verify(&self, commitment: &Self::PublicElement, reveal: &Self::PrivateElement) -> bool {
         let c = self.commit(reveal);
         crypto::util::fixed_time_eq(&c, commitment)
     }

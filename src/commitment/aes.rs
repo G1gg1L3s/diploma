@@ -7,13 +7,14 @@ pub struct Aes128SafeEncryptor;
 pub struct Aes128NiEncryptor;
 
 impl super::Commitment for Aes128SafeEncryptor {
-    type Element = [u8; 16];
+    type PublicElement = [u8; 16];
+    type PrivateElement = [u8; 16];
 
-    fn generate(&self) -> Self::Element {
+    fn generate(&self) -> Self::PrivateElement {
         rand::thread_rng().gen()
     }
 
-    fn commit(&self, el: &Self::Element) -> Self::Element {
+    fn commit(&self, el: &Self::PrivateElement) -> Self::PublicElement {
         let zeroes = [0; 16];
         let mut out = [0; 16];
         let cipher = aessafe::AesSafe128Encryptor::new(el);
@@ -21,20 +22,21 @@ impl super::Commitment for Aes128SafeEncryptor {
         out
     }
 
-    fn verify(&self, commitment: &Self::Element, reveal: &Self::Element) -> bool {
+    fn verify(&self, commitment: &Self::PublicElement, reveal: &Self::PrivateElement) -> bool {
         let c = self.commit(reveal);
         crypto::util::fixed_time_eq(&c, commitment)
     }
 }
 
 impl super::Commitment for Aes128NiEncryptor {
-    type Element = [u8; 16];
+    type PublicElement = [u8; 16];
+    type PrivateElement = [u8; 16];
 
-    fn generate(&self) -> Self::Element {
+    fn generate(&self) -> Self::PrivateElement {
         rand::thread_rng().gen()
     }
 
-    fn commit(&self, el: &Self::Element) -> Self::Element {
+    fn commit(&self, el: &Self::PrivateElement) -> Self::PublicElement {
         let zeroes = [0; 16];
         let mut out = [0; 16];
         let cipher = AesNiEncryptor::new(KeySize128, el);
@@ -42,7 +44,7 @@ impl super::Commitment for Aes128NiEncryptor {
         out
     }
 
-    fn verify(&self, commitment: &Self::Element, reveal: &Self::Element) -> bool {
+    fn verify(&self, commitment: &Self::PublicElement, reveal: &Self::PrivateElement) -> bool {
         let c = self.commit(reveal);
         crypto::util::fixed_time_eq(&c, commitment)
     }

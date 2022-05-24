@@ -2,23 +2,24 @@ pub mod aes;
 pub mod hash;
 
 pub trait Commitment {
-    type Element: Clone;
+    type PublicElement;
+    type PrivateElement: Clone;
 
-    fn generate(&self) -> Self::Element;
+    fn generate(&self) -> Self::PrivateElement;
 
-    fn commit(&self, el: &Self::Element) -> Self::Element;
+    fn commit(&self, el: &Self::PrivateElement) -> Self::PublicElement;
 
-    fn verify(&self, commitment: &Self::Element, reveal: &Self::Element) -> bool;
+    fn verify(&self, commitment: &Self::PublicElement, reveal: &Self::PrivateElement) -> bool;
 }
 
 pub struct PrivateKey<C: Commitment> {
     commit: C,
-    private: C::Element,
+    private: C::PrivateElement,
 }
 
 pub struct PublicKey<C: Commitment> {
     commit: C,
-    public: C::Element,
+    public: C::PublicElement,
 }
 
 impl<C: Commitment> PrivateKey<C> {
@@ -27,11 +28,11 @@ impl<C: Commitment> PrivateKey<C> {
         Self { commit, private }
     }
 
-    pub fn public(&self) -> C::Element {
+    pub fn public(&self) -> C::PublicElement {
         self.commit.commit(&self.private)
     }
 
-    pub fn private(&self) -> C::Element {
+    pub fn private(&self) -> C::PrivateElement {
         self.private.clone()
     }
 
@@ -42,15 +43,15 @@ impl<C: Commitment> PrivateKey<C> {
 }
 
 impl<C: Commitment> PublicKey<C> {
-    pub fn new(commit: C, public: C::Element) -> Self {
+    pub fn new(commit: C, public: C::PublicElement) -> Self {
         Self { commit, public }
     }
 
-    pub fn verify(&self, private: &C::Element) -> bool {
+    pub fn verify(&self, private: &C::PrivateElement) -> bool {
         self.commit.verify(&self.public, private)
     }
 
-    pub fn advance(&mut self, new_public: C::Element) {
+    pub fn advance(&mut self, new_public: C::PublicElement) {
         self.public = new_public;
     }
 }
